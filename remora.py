@@ -65,6 +65,10 @@ class RuntimeError(Error):
         
         return 'Traceback (most recent call last):\n' + result
 
+class TypeError(Error):
+    def __init__(self, pos_start, pos_end, details):
+        Error.__init__(self, pos_start, pos_end, 'Type Error:', details)
+
 ##########################
 # POSITION
 ##########################
@@ -113,6 +117,8 @@ TT_GTE            = 'GTE'
 TT_EOF            = 'EOF'
 
 KEYWORDS = [
+    'int',
+    'float',
     'var',
     'and',
     'or',
@@ -133,7 +139,7 @@ class Token:
             self.pos_end = pos_end
     
     def matches(self, type_, value):
-        return self.type == type_ and self.value == value
+        return self.type == type_ and self.value in value
 
     def __repr__(self):
         if self.value: return f'{self.type}:{self.value}'
@@ -447,7 +453,7 @@ class Parser:
     def comp_expr(self):
         res = ParseResult()
 
-        if self.current_tok.matches(TT_KEYWORD, 'not'):
+        if self.current_tok.matches(TT_KEYWORD, ('not',)):
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
@@ -468,7 +474,9 @@ class Parser:
 
     def expr(self):
         res = ParseResult()
-        if self.current_tok.matches(TT_KEYWORD, 'var'):
+        if self.current_tok.matches(TT_KEYWORD, ('int', 'float', 'var')):
+            expected_type = self.current_tok.value.upper()
+            type_declaration_pos = self.current_tok.pos_start, self.current_tok.pos_end
             res.register_advancement()
             self.advance()
 
@@ -492,14 +500,29 @@ class Parser:
             self.advance()
             expr = res.register(self.expr())
             if res.error: return res
-            return res.success(VarAssignNode(var_name, expr))
+
+            if isinstance(expr, NumberNode) and expr.tok.type == expected_type: 
+                return res.success(VarAssignNode(var_name, expr))
+            elif isinstance(expr, BinOpNode):
+                if expected_type != 'VAR':
+                    return res.failure(TypeError(
+                        type_declaration_pos[0], type_declaration_pos[1],
+                        f"Expected 'var' for expressions"
+                    ))
+                else:
+                    return res.success(VarAssignNode(var_name, expr))
+            else:
+                return res.failure(TypeError(
+                    type_declaration_pos[0], type_declaration_pos[1],
+                    f"Expected type {expected_type}, got {expr.tok.type}"
+                ))
 
         node = res.register(self.bin_op(self.comp_expr, ((TT_KEYWORD, "and"), (TT_KEYWORD, "or"))))
 
         if res.error: 
             return res.failure(IllegalSyntaxError(
 				self.current_tok.pos_start, self.current_tok.pos_end,
-				"Expected 'VAR', int, float, identifier, '+', '-' or '('"
+				"Expected variable, int, float, identifier, '+', '-' or '('"
 			))
 
         return res.success(node)
@@ -738,14 +761,15 @@ class Interpreter:
             result, error = left.get_comparison_lte(right)
         elif node.op_tok.type == TT_GTE:
             result, error = left.get_comparison_gte(right)
-        elif node.op_tok.matches(TT_KEYWORD, 'and'):
+        elif node.op_tok.matches(TT_KEYWORD, ('and',)):
             result, error = left.anded_by(right)
-        elif node.op_tok.matches(TT_KEYWORD, 'or'):
+        elif node.op_tok.matches(TT_KEYWORD, ('or',)):
             result, error = left.ored_by(right)
         
         if error:
             return res.failure(error)
         else:
+            
             return res.success(result.set_pos(node.pos_start, node.pos_end))
 
     def visit_UnaryOpNode(self, node, context):
@@ -757,7 +781,7 @@ class Interpreter:
 
         if node.op_tok.type == TT_MINUS:
             number, error = number.multiplied_by(Number(-1))
-        elif node.op_tok.matches(TT_KEYWORD, 'not'):
+        elif node.op_tok.matches(TT_KEYWORD, ('not',)):
             number, error = number.notted()
 
         if error:
