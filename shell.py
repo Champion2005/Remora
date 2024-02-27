@@ -10,4 +10,4 @@ while 1:
         if len(result.elements) == 1:
             print(str(result.elements[0]))
         else:
-            print(str(result))
+            print(str(result),"exit code")
