@@ -10,9 +10,10 @@ Remora is an interpreted programming language created in Python.
 2. Create a file with the .re extension
    * `example.re`
 
-3. Run the `shell.py` script
-4. Call `run("path/to/your_re_file")`
-5. Celebrate! You just ran your first Remora program!
+3. Write a program! See [samples](#sample-programs) for inspiration.
+4. Run the `shell.py` script
+5. Call `run("path/to/your_re_file")`
+6. Celebrate! You just ran your first Remora program!
    
 ## Sample Programs
 
