@@ -60,9 +60,9 @@ end
 ```
 Output
 ```
-Hello Aditya, you are 18 years old
-Hello Jeff, you are 19 years old
-Hello Bart, you are 20 years old
+Hello Person1, you are 18 years old
+Hello Person2, you are 19 years old
+Hello Person3, you are 20 years old
 ```
 
 Thanks to CodePulse on youtube, @davidcallanan on github. 
